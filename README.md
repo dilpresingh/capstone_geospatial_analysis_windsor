@@ -78,7 +78,8 @@ CBC News. (n.d.). City cracking down on parking enforcement near schools, follow
 Retrieved June 3, 2022, from https://www.cbc.ca/news/canada/windsor/windsor-parkingenforcement-
 schools-1.6205122
 
-Group Members
+Contributors
+
  Shubhankar Sudhir Vaidya – W0782520
 
  Dilpreet Singh – W0781536
