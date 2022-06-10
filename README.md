@@ -64,13 +64,16 @@ who reported issues on 311.
 
 Data sources
 This open data catalogue is available for the public at: https://opendata.citywindsor.ca/.
+
 References
 City of Windsor. (n.d.). 20-Year Strategic Vision. Retrieved June 3, 2022, from
 https://www.citywindsor.ca/mayorandcouncil/20-year-strategic-vision/documents/windsor-
 20-year-plan.pdf
+
 La Grassa, J. (2021). UWindsor researcher maps which Windsor neighbourhoods need help
 accessing vaccines. CBC News. https://www.cbc.ca/news/canada/windsor/windsor-essexpharmacy-
 app-locator-1.5986137
+
 CBC News. (n.d.). City cracking down on parking enforcement near schools, following complaints.
 Retrieved June 3, 2022, from https://www.cbc.ca/news/canada/windsor/windsor-parkingenforcement-
 schools-1.6205122
