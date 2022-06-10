@@ -1,0 +1,219 @@
+---
+title: "caps_1"
+author: "Dilpreet Singh"
+date: "6/7/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+# load packages
+library(sf)
+library(tidyverse)
+library(ggplot2)
+library(tmap)
+library(tidygeocoder)
+
+```
+
+## Part 1
+
+```{r pressure, echo=FALSE}
+#read 311 data
+my_data <- read.csv("AllServiceRequests_YTD.csv")
+```
+
+```{r}
+# Clean 311 data
+my_data_clean=my_data[rowSums(is.na(my_data)) == 0,]
+```
+
+```{r}
+# Summary of cleaned data
+summary(my_data_clean)
+```
+
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+```{r}
+#appending the block address,street,city and state columns to create a new column for address (as per tidygeocoder format)
+my_data$addr <- paste0(my_data$Block.Address,',',my_data$Street,',','Windsor',',','Ontario')
+
+```
+
+```{r}
+#converting the data to tibble to be input into geocoder
+my_data_tibble=as_tibble(my_data)
+
+#Final_data <- eda1 %>% 
+  #geocode(addr,lat=latitude,long=longitude)
+
+#test <- my_data_tibble[12000:12002,]
+#test
+
+# generating latitude and longitudes for the cleaned 311 data using geocoder
+lat_longs <- my_data_tibble %>%
+  geocode(addr, method = 'osm', lat = latitude , long = longitude)
+
+
+#write.csv(lat_long11,"C:/Users/Shubhankar/Desktop/4th sem/DAB 402/Final_data.csv", row.names = FALSE)
+```
+```{r}
+# exporting the generated tibble containing latitude and longitude
+write.csv(lat_longs,"C:/Users/Dell/OneDrive/Desktop/Final_data.csv", row.names = FALSE)
+```
+
+```{r}
+#convert tibble to dataframe
+lat_longs_df <- as.data.frame(lat_longs)
+```
+
+
+```{r}
+#clean the new generated data (remove values having lat and long as na)
+#lat_longs_clean <- lat_longs_df[!(is.na(lat_longs_df$latitude))]
+lat_longs_clean <- lat_longs_df %>% drop_na(latitude)
+lat_longs_clean 
+```
+
+```{r}
+# exporting the cleaned file
+write.csv(lat_longs_clean,"C:/Users/Dell/OneDrive/Desktop/final_data_clean.csv", row.names = FALSE)
+
+```
+
+```{r}
+#remove outliers from data (having coordinates out of range of the city of Windsor)
+final_data_cleaned <- lat_longs_clean %>% filter(latitude <= 42.34242631)
+final_data_cleaned
+```
+```{r}
+# export final cleaned data
+write.csv(final_data_cleaned,"C:/Users/Dell/OneDrive/Desktop/final_data_cleaned.csv", row.names = FALSE)
+```
+
+Part 2
+
+```{r}
+# load final cleaned data
+final_data_cleaned <- read.csv("C:/Users/Dell/OneDrive/Desktop/DAB501/final_data_cleaned.csv")
+```
+
+
+```{r}
+# read ward boundaries shp file as vector
+ward_boundaries <- st_read("Municipal Ward Boundaries_UTM83.shp")
+ward_boundaries
+```
+
+```{r}
+#fetch crs of ward boundaries
+the_crs <- st_crs(ward_boundaries) 
+
+#convert the data frame to an sf object, having the fetched crs 
+#final_data_sf <- st_as_sf(final_data_cleaned, coords = c("latitude","longitude"), crs = the_crs)
+final_data_sf <- st_as_sf(final_data_cleaned, coords = c("latitude","longitude"),crs=the_crs)
+
+final_data_sf
+```
+
+```{r}
+#transform crs
+#final_data_sf <- st_transform(final_data_sf, crs = the_crs)
+#final_data_sf
+```
+```{r}
+
+```
+
+
+```{r}
+#bbox=st_bbox(ward_boundaries)
+#bbox
+```
+
+
+```{r}
+# change bounding box of final_data_sf to match bounding box of ward boundaries
+#attr(st_geometry(final_data_sf),"bbox")=st_bbox(ward_boundaries)
+#bbox_1=st_bbox(final_data_sf)
+#bbox_1
+```
+
+```{r}
+#final_data_sf
+```
+
+```{r}
+# fetching first 10 rows of data, for plotting map
+temp_data <- final_data_sf[1:10,]
+```
+
+
+```{r}
+# plot
+tm_shape(ward_boundaries)+
+  tm_fill()+
+   tm_borders()+
+  tmap_style("natural")+
+  tm_shape(final_data_sf %>% filter(Service.Request.Description=='Building Accessibility'))+
+  tm_dots(size=0.3)
+```
+
+```{r}
+tm_shape(ward_boundaries)+
+  tm_fill()+
+   tm_borders()+
+  tmap_style("natural")+
+  tm_shape(temp_data)+
+  tm_dots(size=0.3)
+```
+
+
+```{r}
+plot(st_geometry(temp_data))
+
+```
+
+```{r}
+plot(st_geometry(final_data_sf))
+```
+
+
+```{r}
+ggplot()+
+  geom_sf(data=final_data_sf)
+```
+
+```{r}
+ggplot()+
+  geom_sf(data=ward_boundaries)
+```
+
+
+```{r}
+#default_crs = sf::st_crs(the_crs)
+```
+
+
+```{r}
+ggplot()+
+  geom_sf(data=ward_boundaries)+
+  geom_sf(data=final_data_sf)
+```
+
+
+```{r}
+
+```
+
