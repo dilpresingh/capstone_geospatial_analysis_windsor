@@ -1,0 +1,23 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+# load cleaned data
+final_data_cleaned <- read.csv("C:/Users/Dell/OneDrive/Desktop/DAB501/final_data_cleaned.csv")
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
