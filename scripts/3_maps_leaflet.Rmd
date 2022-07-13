@@ -1,0 +1,575 @@
+---
+title: "Untitled"
+author: "Dilpreet Singh"
+date: "6/24/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Part 3- Leaflet
+
+```{r include=FALSE}
+# load packages
+library(sf)
+library(tidyverse)
+library(ggplot2)
+library(tmap)
+library(tidygeocoder)
+library(spdep)
+library(sp)
+library(leaflet)
+library(leaflet.extras)
+library(KernSmooth)
+library(raster)
+library(rgeos)
+```
+
+```{r}
+# load final cleaned data for 2022
+final_data_2022 <- read.csv("C:/Users/Dell/OneDrive/Desktop/capstone/final_data_cleaned_updated.csv")
+
+# read ward boundaries shp file as vector
+ward_boundaries <- st_read("Municipal Ward Boundaries_UTM83.shp")
+
+#fetch crs of ward boundaries
+the_crs <- st_crs(ward_boundaries) 
+
+#convert the final_data_cleaned data frame to an sf object
+final_data_sf <- st_as_sf(final_data_2022, coords = c("longitude","latitude"),crs=4326)
+
+#transform crs of final_data_Sf to match crs of ward boundaries
+ st_transform(final_data_sf, crs=the_crs) 
+
+# transform crs to plot leaflet map (match projection of ward boundaries to leaflet)
+ward_boundaries_1 <-
+  st_transform(ward_boundaries, crs = "+proj=longlat +init=epsg:4326 +ellps=WGS84 +datum=WGS84 +no_defs")
+```
+
+# 2022 overall analysis
+
+```{r}
+# create basemap
+basemap <- leaflet() %>% 
+  # add different provider tiles
+  addProviderTiles(
+    "OpenStreetMap",
+    # give the layer a name
+    group = "OpenStreetMap"
+  ) %>%
+  addProviderTiles(
+    "Stamen.Toner",
+    group = "Stamen.Toner"
+  ) %>%
+  addProviderTiles(
+    "Stamen.Terrain",
+    group = "Stamen.Terrain"
+  ) %>%
+  addProviderTiles(
+    "Esri.WorldStreetMap",
+    group = "Esri.WorldStreetMap"
+  ) %>%
+  addProviderTiles(
+    "Wikimedia",
+    group = "Wikimedia"
+  ) %>%
+  addProviderTiles(
+    "CartoDB.Positron",
+    group = "CartoDB.Positron"
+  ) %>%
+  addProviderTiles(
+    "Esri.WorldImagery",
+    group = "Esri.WorldImagery"
+  ) %>%
+# add a layers control
+  addLayersControl(
+    baseGroups = c(
+      "OpenStreetMap", "Stamen.Toner",
+      "Stamen.Terrain", "Esri.WorldStreetMap",
+      "Wikimedia", "CartoDB.Positron", "Esri.WorldImagery"
+    ),
+    # position it on the topleft
+    position = "topleft"
+  )
+```
+
+# map ward boundaries
+
+```{r}
+# Find a center point for each region (for labeling)
+centers <-
+  data.frame(gCentroid(as_Spatial(ward_boundaries_1), byid = TRUE))
+centers$region <- c("9", "6", "7", "1", "2", "10", "3", "5", "4", "8")
+
+# creating a custom color palette for coloring different wards
+pal <-
+  colorNumeric(palette = "Dark2",
+               domain = as.numeric(ward_boundaries_1$NUMBER))
+colorData <- as.numeric(ward_boundaries_1$NUMBER)
+
+# ward boundaries map used for plotting contour plots
+map_ward_boundaries <-
+  leaflet() %>% addTiles() %>% 
+  addPolygons(
+    data = ward_boundaries_1,
+    weight = 1,
+    opacity = 1,
+    fillOpacity = 0,
+    smoothFactor = 0.5,
+    color = 'blue'
+  ) %>% # add labels for ward name
+  addLabelOnlyMarkers(
+    data = centers,
+    lng = ~ x,
+    lat = ~ y,
+    label = ~ region,
+    labelOptions = labelOptions(
+      noHide = TRUE,
+      direction = 'top',
+      textOnly = TRUE,
+      textsize = "17px"
+    )
+  )
+
+# ward boundaries map with dark background
+map_ward_boundaries_dark <-
+  leaflet() %>% addProviderTiles("CartoDB.DarkMatter") %>%
+  addPolygons(
+    data = ward_boundaries_1,
+    weight = 1,
+    opacity = 0.5,
+    fillOpacity = 0,
+    smoothFactor = 0.5,
+    color = 'white'
+  ) %>% # add labels for ward name
+  addLabelOnlyMarkers(
+    data = centers,
+    lng = ~ x,
+    lat = ~ y,
+    label = ~ region,
+    labelOptions = labelOptions(
+      noHide = TRUE,
+      direction = 'top',
+      textOnly = TRUE,
+      textsize = "17px"
+    )
+  )
+
+# add ward boundaries to base map along with ward labels and custom color pallet
+map_1 <- basemap %>%
+  addPolygons(
+    data = ward_boundaries_1,
+    weight = 1,
+    opacity = 1.0,
+    fillOpacity = 0.6,
+    smoothFactor = 0.5,
+    color = ~ pal(colorData)
+  ) %>% # add labels for ward name
+  addLabelOnlyMarkers(
+    data = centers,
+    lng = ~ x,
+    lat = ~ y,
+    label = ~ region,
+    labelOptions = labelOptions(
+      noHide = TRUE,
+      direction = 'top',
+      textOnly = TRUE,
+      textsize = "15px"
+    )
+  )
+map_1
+```
+
+# map all service requests across the city
+
+```{r}
+map_all_requests <- map_1 %>%
+  # add points
+  addCircleMarkers(
+    data = final_data_sf,
+    
+    # create custom labels
+    label = paste(
+      "Address: ", final_data_sf$addr, "<br>",
+      "Service request: ",
+      final_data_sf$Service.Request.Description,"<br>",
+      "Date: ", final_data_sf$Created.Date
+    ) %>%
+      lapply(htmltools::HTML)
+  ) %>%
+  # add a legend
+  addLegend(
+    colors = "blue",
+    labels = "Service Request",
+    title = "Serive Request Distribution",
+    opacity = 1, 
+    position = "bottomleft"
+  )
+
+map_all_requests
+```
+
+# map all service requests as clusters for better visualization and add key places in the city 
+
+```{r}
+# create custom icons for key places in the city
+icon.fa <- makeAwesomeIcon(
+  icon = "flag", markerColor = "red",
+  library = "fa",
+  iconColor = "black"
+)
+
+map_2 <- map_1 %>%
+  # add points
+  addCircleMarkers(data = final_data_sf,
+                   clusterOptions = markerClusterOptions()) %>%
+  # add key places to map
+  addAwesomeMarkers(
+    lat = 42.3188,
+    lng = -83.0420,
+    label = "St.Clair Centre for the Arts",
+    icon = icon.fa
+  ) %>% 
+  addAwesomeMarkers(
+    lat = 42.3043,
+    lng = -83.0660,
+    label = "University of windsor",
+    icon = icon.fa
+  ) %>%  
+  addAwesomeMarkers(
+    lat = 42.2485,
+    lng = -83.0203,
+    label = "St. Clair College - Main Building",
+    icon = icon.fa
+  ) %>% 
+  addAwesomeMarkers(
+    lat = 42.2660,
+    lng = -82.9607,
+    label = "Windsor International Airport",
+    icon = icon.fa
+  ) %>% 
+  addAwesomeMarkers(
+    lat = 42.2660,
+    lng = -82.9607,
+    label = "Windsor International Airport",
+    icon = icon.fa
+  ) %>% 
+  addAwesomeMarkers(
+    lat = 42.3209,
+    lng = -83.0183,
+    label = "Wyandotte Town Centre",
+    icon = icon.fa
+  ) %>% 
+  addAwesomeMarkers(
+    lat = 42.2732,
+    lng = -83.0014,
+    label = "Devonshire mall",
+    icon = icon.fa
+  ) %>% 
+  addAwesomeMarkers(
+    lat = 42.3192,
+    lng = -82.9278,
+    label = "WFCU Centre",
+    icon = icon.fa
+  ) %>% addAwesomeMarkers(
+    lat = 42.3386,
+    lng = -82.9191,
+    label = "Sand Point Beach",
+    icon = icon.fa
+  ) %>% addAwesomeMarkers(
+    lat = 42.299961,
+    lng = -82.997269,
+    label = "Windsor Regional Hospital - Metropolitan Campus",
+    icon = icon.fa
+  )%>% addAwesomeMarkers(
+    lat = 42.2951,
+    lng = -83.0227,
+    label = "Jackson Park",
+    icon = icon.fa
+  ) %>% addAwesomeMarkers(
+    lat = 42.314070,
+    lng = -82.943030,
+    label = "Walmart Supercentre",
+    icon = icon.fa
+  ) %>% addAwesomeMarkers(
+    lat = 42.3044,
+    lng = -82.9786,
+    label = "Central Mall",
+    icon = icon.fa
+  ) %>% addAwesomeMarkers(
+    lat = 42.3044,
+    lng = -82.9786,
+    label = "Central Mall",
+    icon = icon.fa
+  ) %>% addAwesomeMarkers(
+    lat = 42.2551,
+    lng = -82.9656,
+    label = "Costco Wholesale",
+    icon = icon.fa
+  ) %>% addAwesomeMarkers(
+    lat = 42.28793019457313,
+    lng = -83.0239635485438,
+    label = "Service Ontario",
+    icon = icon.fa
+  )
+  
+
+map_2
+```
+
+# Contour plot for all service requests 2022
+
+```{r}
+# MAKE CONTOUR LINES
+kde <- bkde2D(cbind(final_data_2022$longitude,final_data_2022$latitude),
+              bandwidth=c(.0045, .0068), gridsize = c(1000,1000))
+
+CL <- contourLines(kde$x1 , kde$x2 , kde$fhat)
+
+# EXTRACT CONTOUR LINE LEVELS
+LEVS <- as.factor(sapply(CL, `[[`, "level"))
+NLEV <- length(levels(LEVS))
+
+# CONVERT CONTOUR LINES TO POLYGONS
+pgons <- lapply(1:length(CL), function(i)
+    Polygons(list(Polygon(cbind(CL[[i]]$x, CL[[i]]$y))), ID=i))
+spgons = SpatialPolygons(pgons)
+
+# Leaflet map with polygons
+leaflet(spgons) %>% addTiles() %>% 
+    addPolygons(color = heat.colors(NLEV, NULL)[LEVS])
+
+```
+
+# Create Raster from Kernel Density output
+
+```{r}
+KernelDensityRaster <- raster(list(x=kde$x1 ,y=kde$x2 ,z = kde$fhat))
+
+#set low density cells as NA so we can make them transparent with the colorNumeric function
+ KernelDensityRaster@data@values[which(KernelDensityRaster@data@values < 1)] <- NA
+
+#create pal function for coloring the raster
+palRaster <- colorBin("Spectral", bins = 7, domain = KernelDensityRaster@data@values, na.color = "transparent")
+
+# Leaflet map with raster
+leaflet()  %>% addTiles() %>% 
+  addRasterImage(KernelDensityRaster, 
+                 colors = palRaster, 
+                 opacity = .5) %>%
+  addLegend(pal = palRaster, 
+            values = KernelDensityRaster@data@values, 
+            title = "Kernel Density of Points")
+```
+
+# Create Raster from Kernel Density output (dark background)
+
+```{r}
+KernelDensityRaster <- raster(list(x=kde$x1 ,y=kde$x2 ,z = kde$fhat))
+
+#set low density cells as NA so we can make them transparent with the colorNumeric function
+ KernelDensityRaster@data@values[which(KernelDensityRaster@data@values < 1)] <- NA
+
+#create pal function for coloring the raster
+palRaster <- colorBin("Spectral", bins = 7, domain = KernelDensityRaster@data@values, na.color = "transparent")
+
+# Leaflet map with raster
+leaflet() %>%  addProviderTiles("CartoDB.DarkMatter") %>% 
+  addRasterImage(KernelDensityRaster, 
+                 colors = palRaster, 
+                 opacity = .3) %>%
+  addLegend(pal = palRaster, 
+            values = KernelDensityRaster@data@values, 
+            title = "Kernel Density of Points")
+
+```
+
+# Contour plot for top 5 service requests 2022
+
+## Dirty Yard
+
+```{r}
+final_data_2022_dirty_yard <- final_data_2022 %>% filter(Service.Request.Description=='Dirty Yard')
+
+# Create kernel density output
+kde <- bkde2D(cbind(final_data_2022_dirty_yard$longitude,final_data_2022_dirty_yard$latitude),
+              bandwidth=c(.0045, .0068), gridsize = c(1000,1000))
+
+# create contour lines based on kernel density output
+CL <- contourLines(kde$x1 , kde$x2 , kde$fhat)
+
+# extract countour LINE LEVELS
+LEVS <- as.factor(sapply(CL, `[[`, "level"))
+NLEV <- length(levels(LEVS))
+
+# convert to ratser
+KernelDensityRaster <- raster(list(x=kde$x1 ,y=kde$x2 ,z = kde$fhat))
+
+#set low density cells as NA so we can make them transparent with the colorNumeric function
+ KernelDensityRaster@data@values[which(KernelDensityRaster@data@values < 1)] <- NA
+
+#create pal function for coloring the raster
+palRaster <- colorBin("Spectral", bins = 7, domain = KernelDensityRaster@data@values, na.color = "transparent")
+
+# create raster containing ward labels
+map_ward_boundaries %>% 
+  addRasterImage(KernelDensityRaster, 
+                 colors = palRaster, 
+                 opacity = .5) %>%
+  addLegend(pal = palRaster, 
+            values = KernelDensityRaster@data@values, 
+            title = "Kernel Density of Points")
+
+```
+
+
+## Building Conditions
+
+```{r}
+final_data_2022_building_condition <- final_data_2022 %>% filter(Service.Request.Description=='Building Conditions')
+
+# Create kernel density output
+kde <- bkde2D(cbind(final_data_2022_building_condition$longitude,final_data_2022_building_condition$latitude),
+              bandwidth=c(.0045, .0068), gridsize = c(1000,1000))
+
+# create contour lines based on kernel density output
+CL <- contourLines(kde$x1 , kde$x2 , kde$fhat)
+
+# extract countour LINE LEVELS
+LEVS <- as.factor(sapply(CL, `[[`, "level"))
+NLEV <- length(levels(LEVS))
+
+# convert to raster
+KernelDensityRaster <- raster(list(x=kde$x1 ,y=kde$x2 ,z = kde$fhat))
+
+#set low density cells as NA so we can make them transparent with the colorNumeric function
+ KernelDensityRaster@data@values[which(KernelDensityRaster@data@values < 1)] <- NA
+
+#create pal function for coloring the raster
+palRaster <- colorBin("Spectral", bins = 7, domain = KernelDensityRaster@data@values, na.color = "transparent")
+
+# create raster containing ward labels
+map_ward_boundaries %>% 
+  addRasterImage(KernelDensityRaster, 
+                 colors = palRaster, 
+                 opacity = .5) %>%
+  addLegend(pal = palRaster, 
+            values = KernelDensityRaster@data@values, 
+            title = "Kernel Density of Points")
+
+```
+
+
+## Garbage Not Collected
+
+```{r}
+final_data_2022_garbage <- final_data_2022 %>% filter(Service.Request.Description=='Garbage Not Collected')
+
+# Create kernel density output
+kde <- bkde2D(cbind(final_data_2022_garbage$longitude,final_data_2022_garbage$latitude),
+              bandwidth=c(.0045, .0068), gridsize = c(1000,1000))
+
+# create contour lines based on kernel density output
+CL <- contourLines(kde$x1 , kde$x2 , kde$fhat)
+
+# extract countour LINE LEVELS
+LEVS <- as.factor(sapply(CL, `[[`, "level"))
+NLEV <- length(levels(LEVS))
+
+# convert to ratser
+KernelDensityRaster <- raster(list(x=kde$x1 ,y=kde$x2 ,z = kde$fhat))
+
+#set low density cells as NA so we can make them transparent with the colorNumeric function
+ KernelDensityRaster@data@values[which(KernelDensityRaster@data@values < 1)] <- NA
+
+#create pal function for coloring the raster
+palRaster <- colorBin("Spectral", bins = 7, domain = KernelDensityRaster@data@values, na.color = "transparent")
+
+# create raster containing ward labels
+map_ward_boundaries %>% 
+  addRasterImage(KernelDensityRaster, 
+                 colors = palRaster, 
+                 opacity = .5) %>%
+  addLegend(pal = palRaster, 
+            values = KernelDensityRaster@data@values, 
+            title = "Kernel Density of Points")
+
+```
+
+
+## Rodent Extermination
+
+```{r}
+final_data_2022_rodent_extermination <- final_data_2022 %>% filter(Service.Request.Description=='Rodent Extermination')
+
+# Create kernel density output
+kde <- bkde2D(cbind(final_data_2022_rodent_extermination$longitude,final_data_2022_rodent_extermination$latitude),
+              bandwidth=c(.0045, .0068), gridsize = c(1000,1000))
+
+# create contour lines based on kernel density output
+CL <- contourLines(kde$x1 , kde$x2 , kde$fhat)
+
+# extract countour LINE LEVELS
+LEVS <- as.factor(sapply(CL, `[[`, "level"))
+NLEV <- length(levels(LEVS))
+
+# convert to ratser
+KernelDensityRaster <- raster(list(x=kde$x1 ,y=kde$x2 ,z = kde$fhat))
+
+#set low density cells as NA so we can make them transparent with the colorNumeric function
+ KernelDensityRaster@data@values[which(KernelDensityRaster@data@values < 1)] <- NA
+
+#create pal function for coloring the raster
+palRaster <- colorBin("Spectral", bins = 7, domain = KernelDensityRaster@data@values, na.color = "transparent")
+
+# create raster containing ward labels
+map_ward_boundaries %>% 
+  addRasterImage(KernelDensityRaster, 
+                 colors = palRaster, 
+                 opacity = .5) %>%
+  addLegend(pal = palRaster, 
+            values = KernelDensityRaster@data@values, 
+            title = "Kernel Density of Points")
+
+```
+
+
+## Tree Request
+
+```{r}
+final_data_2022_tree_request <- final_data_2022 %>% filter(Service.Request.Description=='Tree Request')
+
+# Create kernel density output
+kde <- bkde2D(cbind(final_data_2022_tree_request$longitude,final_data_2022_tree_request$latitude),
+              bandwidth=c(.0045, .0068), gridsize = c(1000,1000))
+
+# create contour lines based on kernel density output
+CL <- contourLines(kde$x1 , kde$x2 , kde$fhat)
+
+# extract countour LINE LEVELS
+LEVS <- as.factor(sapply(CL, `[[`, "level"))
+NLEV <- length(levels(LEVS))
+
+# convert to ratser
+KernelDensityRaster <- raster(list(x=kde$x1 ,y=kde$x2 ,z = kde$fhat))
+
+#set low density cells as NA so we can make them transparent with the colorNumeric function
+ KernelDensityRaster@data@values[which(KernelDensityRaster@data@values < 1)] <- NA
+
+#create pal function for coloring the raster
+palRaster <- colorBin("Spectral", bins = 7, domain = KernelDensityRaster@data@values, na.color = "transparent")
+
+# create raster containing ward labels
+map_ward_boundaries %>% 
+  addRasterImage(KernelDensityRaster, 
+                 colors = palRaster, 
+                 opacity = .5) %>%
+  addLegend(pal = palRaster, 
+            values = KernelDensityRaster@data@values, 
+            title = "Kernel Density of Points")
+
+```
+
+

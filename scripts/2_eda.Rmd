@@ -1,0 +1,162 @@
+---
+title: "Untitled"
+author: "Dilpreet Singh"
+date: "6/28/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Part 2- EDA for year 2022
+
+```{r}
+# load final cleaned data
+final_data_cleaned <- read.csv("C:/Users/Dell/OneDrive/Desktop/DAB501/final_data_cleaned.csv")
+```
+
+
+```{r}
+view(final_data_cleaned)
+```
+
+```{r}
+head(final_data_cleaned)
+```
+
+```{r}
+ggplot (data = final_data_cleaned) +
+  geom_bar(mapping = aes(x = Department), fill = "grey") +
+  labs(x = "Department", y = "Number of complaints") +
+  coord_flip() +
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_blank(),
+    axis.ticks.y = element_blank(),
+    axis.title.x=element_text(hjust=0),
+    axis.title.y=element_text(hjust=1)
+  ) +
+  ggtitle("Distribution of complaints by department")
+
+```  
+
+The above bar graph is of Department, we can observe that the highest number of requests are received from 'Bylaw Enforcement', whereas the lowest number of requests are received from 'Traffic'.  
+
+```{r}
+final_data_cleaned$Service <-
+  final_data_cleaned$Service.Request.Description
+final_data_cleaned$Method <- final_data_cleaned$Method.Received
+```
+
+
+```{r}
+ggplot (data = final_data_cleaned) +
+  geom_bar(mapping = aes(x = Service), fill = "grey") +
+  labs(x = "Service request",y = "Number of complaints") +
+  coord_flip() +
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_blank(),
+    axis.ticks.y = element_blank(),
+    axis.title.x=element_text(hjust=0),
+    axis.title.y=element_text(hjust=1)
+  ) +
+  ggtitle("Distribution of complaints by service request type")
+```  
+
+The above bar graph represents various Service requests received, we can observe that highest service requests are received for 'dirty yard', followed by 'tree request'.  
+
+```{r}
+ggplot(final_data_cleaned) +
+  geom_bar(aes(x = Method.Received), fill = 'grey') +
+  coord_flip() +
+  labs(x = "Method received", y = "Number of complaints") +
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_blank(),
+    axis.ticks.y = element_blank(),
+    axis.title.x = element_text(hjust = 0),
+    axis.title.y = element_text(hjust = 1)
+  ) +
+  ggtitle("Distribution of complaints by method of request received")
+```  
+
+The above bar graph represents the medium through which the request was received, highest number of requests were received on phone while the lowest number of requests were received through text.  
+
+```{r}
+ggplot(data = final_data_cleaned, aes(x = Ward)) +
+  geom_bar(fill = 'grey') +
+  geom_text(stat = 'count', aes(label = ..count..), hjust=1) + ggtitle("Distribution of 311 requests by ward") +
+  xlab("Ward") + ylab("Number of complaints") +
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_blank(),
+    axis.ticks.y = element_blank(),
+    axis.ticks.x = element_blank(),
+    axis.title.x = element_blank(),#element_text(hjust = 0),
+    axis.title.y = element_text(hjust = 1)
+  )+
+  coord_flip()
+```
+
+The above bar graph represents number of requests received as per wards, we can observe that the highest number of requests were received by ward 2 followed by ward 4.  
+
+## Distribution of 311 complaints for top 3 wards (ward 2,4,3)
+
+```{r}
+ggplot(data = final_data_cleaned %>% filter(Ward == 'WARD 2'),
+       aes(x = Service.Request.Description)) +
+  geom_bar(fill = 'grey')+
+  ggtitle("Distribution of 311 requests in ward 2") +
+  xlab("311 request") + ylab("Number of complaints") +
+  coord_flip() +
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_blank(),
+    axis.ticks.y = element_blank(),
+    axis.title.x = element_text(hjust = 0),
+    axis.title.y = element_text(hjust = 1)
+  )
+```
+
+```{r}
+ggplot(data = final_data_cleaned %>% filter(Ward == 'WARD 4'),
+       aes(x = Service.Request.Description)) +
+  geom_bar(fill = 'grey') + 
+  ggtitle("Distribution of 311 requests in ward 4") +
+  xlab("311 request") + 
+  ylab("Number of complaints") + 
+  coord_flip() +
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_blank(),
+    axis.ticks.y = element_blank(),
+    axis.title.x = element_text(hjust = 0),
+    axis.title.y = element_text(hjust = 1)
+  )
+```
+
+
+```{r}
+ggplot(data = final_data_cleaned %>% filter(Ward == 'WARD 3'),
+       aes(x = Service.Request.Description)) +
+  geom_bar(fill = 'grey') +
+  ggtitle("Distribution of 311 requests in ward 3") +
+  xlab("311 request") + ylab("Number of complaints") + coord_flip() +
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_blank(),
+    axis.ticks.y = element_blank(),
+    axis.title.x = element_text(hjust = 0),
+    axis.title.y = element_text(hjust = 1)
+  )
+```
+

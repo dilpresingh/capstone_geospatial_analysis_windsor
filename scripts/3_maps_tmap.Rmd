@@ -1,0 +1,270 @@
+---
+title: "Untitled"
+author: "Dilpreet Singh"
+date: "6/28/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Part 3 - Plotting 
+
+```{r}
+# load final cleaned data
+final_data_cleaned <- read.csv("C:/Users/Dell/OneDrive/Desktop/DAB501/final_data_cleaned.csv")
+```
+
+
+```{r}
+# read ward boundaries shp file as vector
+ward_boundaries <- st_read("Municipal Ward Boundaries_UTM83.shp")
+ward_boundaries
+```
+
+```{r}
+#fetch crs of ward boundaries
+the_crs <- st_crs(ward_boundaries) 
+
+#convert the final_data_cleaned data frame to an sf object
+final_data_sf <- st_as_sf(final_data_cleaned, coords = c("longitude","latitude"),crs=4326)
+
+#transform crs of final_data_Sf to match crs of ward boundaries
+ st_transform(final_data_sf, crs=the_crs) 
+
+final_data_sf
+```
+## Plotting maps
+
+```{r}
+ggplot()+
+  geom_sf(data=ward_boundaries)
+```
+
+
+```{r}
+ggplot()+
+  geom_sf(data=final_data_sf)
+```
+
+```{r}
+# plot all the 311 requests
+tm_shape(ward_boundaries)+
+  tm_fill("WARD",palette = "Set1")+
+  tm_borders("orange")+
+  tm_shape(final_data_sf)+
+  tm_dots(size=0.2,col="blue")+
+  tm_grid()+
+  tm_layout(legend.position = c("left", "top"), 
+            title= 'Distribution of 311 Requests By Ward', 
+            title.position = c('left', 'top'),
+            title.color = 'deeppink1'
+            )
+```
+```{r}
+# plot all the 311 requests
+tm_shape(ward_boundaries)+
+  tm_fill("WARD",palette = "Set1")+
+  tm_borders("orange")+
+  tm_shape(final_data_sf)+
+  tm_dots(size=0.1,col="blue")+
+  tm_layout(legend.position = c("left", "top"), 
+            title= 'Distribution of 311 Requests By Ward', 
+            title.position = c('left', 'top'),
+            title.color = 'deeppink1'
+            )
+
+```
+
+
+```{r}
+final_data_sf %>% count(Ward,sort=TRUE)
+```
+
+# Plotting distribution of top 10 serive requests by ward 
+
+```{r}
+tm_shape(ward_boundaries)+
+  tm_fill("WARD",palette = "Set1")+
+  tm_borders("orange")+
+  tm_shape(final_data_sf %>% filter(Service.Request.Description=='Dirty Yard'))+
+  tm_dots(size=0.2,col="blue4")+
+  tm_grid()+
+  tm_layout(legend.position = c("left", "top"), 
+            title= 'Distribution of Dirty Yard Requests By Ward', 
+            title.position = c('left', 'top'),
+            title.color = 'deeppink1'
+            )
+```
+
+```{r}
+final_data_sf %>% filter(Service.Request.Description=='Dirty Yard') %>% count(Ward,sort=TRUE)
+```
+
+```{r}
+tm_shape(ward_boundaries)+
+  tm_fill("WARD",palette = "Set1")+
+  tm_borders("orange")+
+  tm_shape(final_data_sf %>% filter(Service.Request.Description=='Tree Request'))+
+  tm_dots(size=0.2,col="blue4")+
+  tm_grid()+
+  tm_layout(legend.position = c("left", "top"), 
+            title= 'Distribution of Tree Requests By Ward', 
+            title.position = c('left', 'top'),
+            title.color = 'deeppink1'
+            )
+```
+
+```{r}
+final_data_sf %>% filter(Service.Request.Description=='Tree Request') %>% count(Ward,sort=TRUE)
+```
+
+
+```{r}
+tm_shape(ward_boundaries)+
+  tm_fill("WARD",palette = "Pastel2")+
+  tm_borders("orange")+
+  tm_shape(final_data_sf %>% filter(Service.Request.Description=='Snow & Ice Removal Issues - Sidewalks'))+
+  tm_dots(size=0.2,col="blue4")+
+  tm_grid()+
+  tm_layout(legend.position = c("left", "top"), 
+            title= 'Distribution of Snow & Ice Removal Issues - Sidewalks', 
+            title.position = c('left', 'top'),
+            title.color = 'deeppink1'
+            )
+```
+
+```{r}
+final_data_sf %>% filter(Service.Request.Description=='Snow & Ice Removal Issues - Sidewalks') %>% count(Ward,sort=TRUE)
+```
+
+
+```{r}
+tm_shape(ward_boundaries)+
+  tm_fill("WARD",palette = "Pastel1")+
+  tm_borders("orange")+
+  tm_shape(final_data_sf %>% filter(Service.Request.Description=='Garbage Not Collected'))+
+  tm_dots(size=0.2,col="blue4")+
+  tm_grid()+
+  tm_layout(legend.position = c("left", "top"), 
+            title= 'Distribution of Garbage Not Collected Requests By Ward', 
+            title.position = c('left', 'top'),
+            title.color = 'deeppink1'
+            )
+```
+
+```{r}
+final_data_sf %>% filter(Service.Request.Description=='Garbage Not Collected') %>% count(Ward,sort=TRUE)
+```
+
+
+```{r}
+tm_shape(ward_boundaries)+
+  tm_fill("WARD",palette = "Paired")+
+  tm_borders("orange")+
+  tm_shape(final_data_sf %>% filter(Service.Request.Description=='Rodent Extermination'))+
+  tm_dots(size=0.2,col="blue4")+
+  tm_grid()+
+  tm_layout(legend.position = c("left", "top"), 
+            title= 'Distribution of Rodent Extermination Requests By Ward', 
+            title.position = c('left', 'top'),
+            title.color = 'deeppink1'
+            )
+```
+
+```{r}
+final_data_sf %>% filter(Service.Request.Description=='Rodent Extermination') %>% count(Ward,sort=TRUE)
+```
+
+
+```{r}
+tm_shape(ward_boundaries)+
+  tm_fill("WARD",palette = "Accent")+
+  tm_borders("orange")+
+  tm_shape(final_data_sf %>% filter(Service.Request.Description=='Building Conditions'))+
+  tm_dots(size=0.2,col="blue4")+
+  tm_grid()+
+  tm_layout(legend.position = c("left", "top"), 
+            title= 'Distribution of Building Conditions Requests By Ward', 
+            title.position = c('left', 'top'),
+            title.color = 'deeppink1'
+            )
+```
+```{r}
+final_data_sf %>% filter(Service.Request.Description=='Building Conditions') %>% count(Ward,sort=TRUE)
+```
+
+
+```{r}
+tm_shape(ward_boundaries)+
+  tm_fill("WARD",palette = "Accent")+
+  tm_borders("orange")+
+  tm_shape(final_data_sf %>% filter(Service.Request.Description=='Snow Plowing & Salting Request'))+
+  tm_dots(size=0.2,col="blue4")+
+  tm_grid()+
+  tm_layout(legend.position = c("left", "top"), 
+            title= 'Distribution of Snow Plowing & Salting Requests By Ward', 
+            title.position = c('left', 'top'),
+            title.color = 'deeppink1'
+            )
+```
+```{r}
+final_data_sf %>% filter(Service.Request.Description=='Snow Plowing & Salting Request') %>% count(Ward,sort=TRUE)
+```
+
+
+```{r}
+tm_shape(ward_boundaries)+
+  tm_fill("WARD",palette = "Spectral")+
+  tm_borders("orange")+
+  tm_shape(final_data_sf %>% filter(Service.Request.Description=='Parks Maintenance'))+
+  tm_dots(size=0.2,col="blue4")+
+  tm_grid()+
+  tm_layout(legend.position = c("left", "top"), 
+            title= 'Distribution of Parks Maintenance Requests By Ward', 
+            title.position = c('left', 'top'),
+            title.color = 'deeppink1'
+            )
+```
+```{r}
+final_data_sf %>% filter(Service.Request.Description=='Parks Maintenance') %>% count(Ward,sort=TRUE)
+```
+
+
+```{r}
+tm_shape(ward_boundaries)+
+  tm_fill("WARD",palette = "Set2")+
+  tm_borders("orange")+
+  tm_shape(final_data_sf %>% filter(Service.Request.Description=='3-Day Parking Infraction'))+
+  tm_dots(size=0.2,col="blue4")+
+  tm_grid()+
+  tm_layout(legend.position = c("left", "top"), 
+            title= 'Distribution of 3-Day Parking Infraction Requests By Ward', 
+            title.position = c('left', 'top'),
+            title.color = 'deeppink1'
+            )
+```
+```{r}
+final_data_sf %>% filter(Service.Request.Description=='3-Day Parking Infraction') %>% count(Ward,sort=TRUE)
+```
+
+```{r}
+tm_shape(ward_boundaries)+
+  tm_fill("WARD",palette = "Set1")+
+  tm_borders("orange")+
+  tm_shape(final_data_sf %>% filter(Service.Request.Description=='Garbage Preparation'))+
+  tm_dots(size=0.2,col="blue4")+
+  tm_grid()+
+  tm_layout(legend.position = c("left", "top"), 
+            title= 'Distribution of Garbage Not Collected Requests By Ward', 
+            title.position = c('left', 'top'),
+            title.color = 'deeppink1'
+            )
+```
+
+
+```{r}
+final_data_sf %>% filter(Service.Request.Description=='Garbage Preparation') %>% count(Ward,sort=TRUE)
+```
+

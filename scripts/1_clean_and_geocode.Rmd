@@ -1,0 +1,86 @@
+---
+title: "Untitled"
+author: "Dilpreet Singh"
+date: "6/25/2022"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(tidygeocoder)
+```
+
+# Cleaning and filtering data
+
+```{r}
+df_tmp <- read.csv("C:/Users/Dell/OneDrive/Desktop/capstone/2021_data_cleaned.csv")
+
+# remove empty rows
+df=df[rowSums(is.na(df)) == 0,]
+
+# Removing empty street values from Block Address
+df <- df[!( df$Street
+==""),]
+
+df_tmp <- df_tmp[!(df_tmp$Street
+                   == " "),]
+
+# Removing blank values from Ward column
+df <- df[!(df$Ward==" "),]
+
+# drop na values
+df <- df %>% drop_na()
+
+df_tmp <- df_tmp %>% filter(
+  Service.Request.Description %in% c(
+    "Dirty Yard",
+    "Tree Request",
+    "Rodent Extermination",
+    "Garbage Not Collected",
+    "Building Conditions"
+  )
+)
+
+write.csv(
+  df_tmp,
+  "C:/Users/Dell/OneDrive/Desktop/capstone/2021_data_cleaned.csv",
+  row.names = FALSE
+)
+
+# export cleaned data
+write.csv(df_3,"C:/Users/Dell/OneDrive/Desktop/2021_data_cleaned.csv", row.names = FALSE)
+
+```
+
+# Geocode data
+
+```{r}
+#load data
+df <- read.csv("C:/Users/Dell/OneDrive/Desktop/capstone/2021_data_cleaned.csv")
+
+#appending the block address,street,city and state columns to create a new column for address (as per tidygeocoder format)
+df$addr <- paste0(df$Block.Address,',',df$Street,',','Windsor',',','Ontario')
+
+
+#converting the data to tibble to be input into geocoder
+df_tibble=as_tibble(df)
+
+
+# generating latitude and longitudes for the cleaned 311 data using geocoder
+lat_longs <- df_tibble %>%
+  geocode(addr, method = 'osm', lat = latitude , long = longitude)
+
+#convert tibble to dataframe
+lat_longs_df <- as.data.frame(lat_longs)
+
+#clean the new generated data (remove values having lat and long as na)
+lat_longs_clean <- lat_longs_df %>% drop_na(latitude)
+
+#remove outliers from data (having coordinates out of range of the city of Windsor)
+final_data_cleaned <- lat_longs_clean %>% filter(latitude <= 42.34242631)
+
+# export final cleaned data
+write.csv(final_data_cleaned,"C:/Users/Dell/OneDrive/Desktop/final_data_2021.csv", row.names = FALSE)
+```
+
+

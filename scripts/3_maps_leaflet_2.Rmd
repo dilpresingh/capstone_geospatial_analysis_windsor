@@ -1,0 +1,490 @@
+---
+title: "Untitled"
+author: "Dilpreet Singh"
+date: "7/9/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+```{r include=FALSE}
+# load packages
+library(sf)
+library(tidyverse)
+library(ggplot2)
+library(tmap)
+library(tidygeocoder)
+library(spdep)
+library(sp)
+library(leaflet)
+library(leaflet.extras)
+library(KernSmooth)
+library(raster)
+library(rgeos)
+```
+
+```{r}
+# load final cleaned data
+final_data_2017 <- read.csv("C:/Users/Dell/OneDrive/Desktop/capstone/final_data_2017.csv")
+final_data_2021 <- read.csv("C:/Users/Dell/OneDrive/Desktop/capstone/final_data_2021.csv")
+
+# read ward boundaries shp file as vector
+ward_boundaries <- st_read("Municipal Ward Boundaries_UTM83.shp")
+
+# transform crs to plot leaflet map 
+ward_boundaries_1 <-
+  st_transform(ward_boundaries, crs = "+proj=longlat +init=epsg:4326 +ellps=WGS84 +datum=WGS84 +no_defs")
+```
+
+# Analysis
+
+```{r}
+# ward boundaries map used for plotting contour plots
+
+# Find a center point for each region (for labeling)
+centers <-
+  data.frame(gCentroid(as_Spatial(ward_boundaries_1), byid = TRUE))
+centers$region <- c("9", "6", "7", "1", "2", "10", "3", "5", "4", "8")
+
+map_ward_boundaries <-
+  leaflet() %>% addTiles() %>% 
+  addPolygons(
+    data = ward_boundaries_1,
+    weight = 1,
+    opacity = 1,
+    fillOpacity = 0,
+    smoothFactor = 0.5,
+    color = 'blue'
+  ) %>% # add labels for ward name
+  addLabelOnlyMarkers(
+    data = centers,
+    lng = ~ x,
+    lat = ~ y,
+    label = ~ region,
+    labelOptions = labelOptions(
+      noHide = TRUE,
+      direction = 'top',
+      textOnly = TRUE,
+      textsize = "17px"
+    )
+  )
+
+```
+
+# Contour plot for all service requests 2017, 2021
+
+```{r}
+# 2017
+# Create kernel density output
+kde <- bkde2D(cbind(final_data_2017$longitude,final_data_2017$latitude),
+              bandwidth=c(.0045, .0068), gridsize = c(1000,1000))
+
+# create contour lines based on kernel density output
+CL <- contourLines(kde$x1 , kde$x2 , kde$fhat)
+
+# extract countour LINE LEVELS
+LEVS <- as.factor(sapply(CL, `[[`, "level"))
+NLEV <- length(levels(LEVS))
+
+# convert to ratser
+KernelDensityRaster <- raster(list(x=kde$x1 ,y=kde$x2 ,z = kde$fhat))
+
+#set low density cells as NA so we can make them transparent with the colorNumeric function
+ KernelDensityRaster@data@values[which(KernelDensityRaster@data@values < 1)] <- NA
+
+#create pal function for coloring the raster
+palRaster <- colorBin("Spectral", bins = 7, domain = KernelDensityRaster@data@values, na.color = "transparent")
+
+# 2021
+# create kernel density output
+kde_1 <- bkde2D(cbind(final_data_2021$longitude,final_data_2021$latitude),
+              bandwidth=c(.0045, .0068), gridsize = c(1000,1000))
+# create contour lines based on kernel density output
+CL_1 <- contourLines(kde_1$x1 , kde_1$x2 , kde_1$fhat)
+
+# extract countour LINE LEVELS
+LEVS_1 <- as.factor(sapply(CL_1, `[[`, "level"))
+NLEV_1 <- length(levels(LEVS_1))
+
+KernelDensityRaster_1 <- raster(list(x=kde_1$x1 ,y=kde_1$x2 ,z = kde_1$fhat))
+
+#set low density cells as NA so we can make them transparent with the colorNumeric function
+ KernelDensityRaster_1@data@values[which(KernelDensityRaster_1@data@values < 1)] <- NA
+
+#create pal function for coloring the raster
+palRaster_1 <- colorBin("Spectral", bins = 7, domain = KernelDensityRaster_1@data@values, na.color = "transparent")
+
+# create raster containing ward labels
+map_ward_boundaries %>% 
+  addRasterImage(KernelDensityRaster, 
+                 colors = palRaster, 
+                 opacity = .5,group='2017') %>%
+  addLegend(pal = palRaster, 
+            values = KernelDensityRaster@data@values, 
+            title = "Kernel Density of Points",group='2017',labels='1') %>% 
+  addRasterImage(KernelDensityRaster_1, 
+                 colors = palRaster_1, 
+                 opacity = .5,group='2021') %>%
+  addLegend(pal = palRaster_1, 
+            values = KernelDensityRaster_1@data@values, 
+            title = "Kernel Density of Points",group='2021',labels='2') %>% 
+  addLayersControl(
+    overlayGroups = c("2017", "2021"),
+    options = layersControlOptions(collapsed = TRUE)
+  ) %>% hideGroup("2021") %>% hideGroup("2017")
+
+```
+
+
+# Contour plot for top 5 service requests 2017, 2021
+
+## Dirty Yard
+```{r}
+final_data_2017_dirty_yard <- final_data_2017 %>% filter(Service.Request.Description=='Dirty Yard')
+final_data_2021_dirty_yard <- final_data_2021 %>% filter(Service.Request.Description=='Dirty Yard')
+```
+
+
+```{r}
+# 2017
+# Create kernel density output
+kde <- bkde2D(cbind(final_data_2017_dirty_yard$longitude,final_data_2017_dirty_yard$latitude),
+              bandwidth=c(.0045, .0068), gridsize = c(1000,1000))
+
+# create contour lines based on kernel density output
+CL <- contourLines(kde$x1 , kde$x2 , kde$fhat)
+
+# extract countour LINE LEVELS
+LEVS <- as.factor(sapply(CL, `[[`, "level"))
+NLEV <- length(levels(LEVS))
+
+# convert to ratser
+KernelDensityRaster <- raster(list(x=kde$x1 ,y=kde$x2 ,z = kde$fhat))
+
+#set low density cells as NA so we can make them transparent with the colorNumeric function
+ KernelDensityRaster@data@values[which(KernelDensityRaster@data@values < 1)] <- NA
+
+#create pal function for coloring the raster
+palRaster <- colorBin("Spectral", bins = 7, domain = KernelDensityRaster@data@values, na.color = "transparent")
+
+# 2021
+# create kernel density output
+kde_1 <- bkde2D(cbind(final_data_2021_dirty_yard$longitude,final_data_2021_dirty_yard$latitude),
+              bandwidth=c(.0045, .0068), gridsize = c(1000,1000))
+# create contour lines based on kernel density output
+CL_1 <- contourLines(kde_1$x1 , kde_1$x2 , kde_1$fhat)
+
+# extract countour LINE LEVELS
+LEVS_1 <- as.factor(sapply(CL_1, `[[`, "level"))
+NLEV_1 <- length(levels(LEVS_1))
+
+KernelDensityRaster_1 <- raster(list(x=kde_1$x1 ,y=kde_1$x2 ,z = kde_1$fhat))
+
+#set low density cells as NA so we can make them transparent with the colorNumeric function
+ KernelDensityRaster_1@data@values[which(KernelDensityRaster_1@data@values < 1)] <- NA
+
+#create pal function for coloring the raster
+palRaster_1 <- colorBin("Spectral", bins = 7, domain = KernelDensityRaster_1@data@values, na.color = "transparent")
+
+# create raster containing ward labels
+map_ward_boundaries %>% 
+  addRasterImage(KernelDensityRaster, 
+                 colors = palRaster, 
+                 opacity = .5,group='2017') %>%
+  addLegend(pal = palRaster, 
+            values = KernelDensityRaster@data@values, 
+            title = "Kernel Density of Points",group='2017') %>% 
+  addRasterImage(KernelDensityRaster_1, 
+                 colors = palRaster_1, 
+                 opacity = .5,group='2021') %>%
+  addLegend(pal = palRaster_1, 
+            values = KernelDensityRaster_1@data@values, 
+            title = "Kernel Density of Points",group='2021') %>% 
+  addLayersControl(
+    overlayGroups = c("2017", "2021"),
+    options = layersControlOptions(collapsed = TRUE)
+  ) %>% hideGroup("2017") 
+
+```
+
+## Building Conditions
+
+```{r}
+final_data_2017_building_condition <- final_data_2017 %>% filter(Service.Request.Description=='Building Conditions')
+final_data_2021_building_condition <- final_data_2021 %>% filter(Service.Request.Description=='Building Conditions')
+```
+
+
+```{r}
+# 2017
+# Create kernel density output
+kde <- bkde2D(cbind(final_data_2017_building_condition$longitude,final_data_2017_building_condition$latitude),
+              bandwidth=c(.0045, .0068), gridsize = c(1000,1000))
+
+# create contour lines based on kernel density output
+CL <- contourLines(kde$x1 , kde$x2 , kde$fhat)
+
+# extract countour LINE LEVELS
+LEVS <- as.factor(sapply(CL, `[[`, "level"))
+NLEV <- length(levels(LEVS))
+
+# convert to ratser
+KernelDensityRaster <- raster(list(x=kde$x1 ,y=kde$x2 ,z = kde$fhat))
+
+#set low density cells as NA so we can make them transparent with the colorNumeric function
+ KernelDensityRaster@data@values[which(KernelDensityRaster@data@values < 1)] <- NA
+
+#create pal function for coloring the raster
+palRaster <- colorBin("Spectral", bins = 7, domain = KernelDensityRaster@data@values, na.color = "transparent")
+
+# 2021
+# create kernel density output
+kde_1 <- bkde2D(cbind(final_data_2021_building_condition$longitude,final_data_2021_building_condition$latitude),
+              bandwidth=c(.0045, .0068), gridsize = c(1000,1000))
+# create contour lines based on kernel density output
+CL_1 <- contourLines(kde_1$x1 , kde_1$x2 , kde_1$fhat)
+
+# extract countour LINE LEVELS
+LEVS_1 <- as.factor(sapply(CL_1, `[[`, "level"))
+NLEV_1 <- length(levels(LEVS_1))
+
+KernelDensityRaster_1 <- raster(list(x=kde_1$x1 ,y=kde_1$x2 ,z = kde_1$fhat))
+
+#set low density cells as NA so we can make them transparent with the colorNumeric function
+ KernelDensityRaster_1@data@values[which(KernelDensityRaster_1@data@values < 1)] <- NA
+
+#create pal function for coloring the raster
+palRaster_1 <- colorBin("Spectral", bins = 7, domain = KernelDensityRaster_1@data@values, na.color = "transparent")
+
+# create raster containing ward labels
+map_ward_boundaries %>% 
+  addRasterImage(KernelDensityRaster, 
+                 colors = palRaster, 
+                 opacity = .5,group='2017') %>%
+  addLegend(pal = palRaster, 
+            values = KernelDensityRaster@data@values, 
+            title = "Kernel Density of Points",group='2017') %>% 
+  addRasterImage(KernelDensityRaster_1, 
+                 colors = palRaster_1, 
+                 opacity = .5,group='2021') %>%
+  addLegend(pal = palRaster_1, 
+            values = KernelDensityRaster_1@data@values, 
+            title = "Kernel Density of Points",group='2021') %>% 
+  addLayersControl(
+    overlayGroups = c("2017", "2021"),
+    options = layersControlOptions(collapsed = TRUE)
+  ) %>% hideGroup("2017") 
+
+```
+
+## Garbage Not Collected
+
+```{r}
+final_data_2017_garbage <- final_data_2017 %>% filter(Service.Request.Description=='Garbage Not Collected')
+final_data_2021_garbage <- final_data_2021 %>% filter(Service.Request.Description=='Garbage Not Collected')
+```
+
+
+```{r}
+# 2017
+# Create kernel density output
+kde <- bkde2D(cbind(final_data_2017_garbage$longitude,final_data_2017_garbage$latitude),
+              bandwidth=c(.0045, .0068), gridsize = c(1000,1000))
+
+# create contour lines based on kernel density output
+CL <- contourLines(kde$x1 , kde$x2 , kde$fhat)
+
+# extract countour LINE LEVELS
+LEVS <- as.factor(sapply(CL, `[[`, "level"))
+NLEV <- length(levels(LEVS))
+
+# convert to ratser
+KernelDensityRaster <- raster(list(x=kde$x1 ,y=kde$x2 ,z = kde$fhat))
+
+#set low density cells as NA so we can make them transparent with the colorNumeric function
+ KernelDensityRaster@data@values[which(KernelDensityRaster@data@values < 1)] <- NA
+
+#create pal function for coloring the raster
+palRaster <- colorBin("Spectral", bins = 7, domain = KernelDensityRaster@data@values, na.color = "transparent")
+
+# 2021
+# create kernel density output
+kde_1 <- bkde2D(cbind(final_data_2021_garbage$longitude,final_data_2021_garbage$latitude),
+              bandwidth=c(.0045, .0068), gridsize = c(1000,1000))
+# create contour lines based on kernel density output
+CL_1 <- contourLines(kde_1$x1 , kde_1$x2 , kde_1$fhat)
+
+# extract countour LINE LEVELS
+LEVS_1 <- as.factor(sapply(CL_1, `[[`, "level"))
+NLEV_1 <- length(levels(LEVS_1))
+
+KernelDensityRaster_1 <- raster(list(x=kde_1$x1 ,y=kde_1$x2 ,z = kde_1$fhat))
+
+#set low density cells as NA so we can make them transparent with the colorNumeric function
+ KernelDensityRaster_1@data@values[which(KernelDensityRaster_1@data@values < 1)] <- NA
+
+#create pal function for coloring the raster
+palRaster_1 <- colorBin("Spectral", bins = 7, domain = KernelDensityRaster_1@data@values, na.color = "transparent")
+
+# create raster containing ward labels
+map_ward_boundaries %>% 
+  addRasterImage(KernelDensityRaster, 
+                 colors = palRaster, 
+                 opacity = .5,group='2017') %>%
+  addLegend(pal = palRaster, 
+            values = KernelDensityRaster@data@values, 
+            title = "Kernel Density of Points",group='2017') %>% 
+  addRasterImage(KernelDensityRaster_1, 
+                 colors = palRaster_1, 
+                 opacity = .5,group='2021') %>%
+  addLegend(pal = palRaster_1, 
+            values = KernelDensityRaster_1@data@values, 
+            title = "Kernel Density of Points",group='2021') %>% 
+  addLayersControl(
+    overlayGroups = c("2017", "2021"),
+    options = layersControlOptions(collapsed = TRUE)
+  ) %>% hideGroup("2017") 
+
+```
+
+## Rodent Extermination
+
+```{r}
+final_data_2017_rodent_extermination <- final_data_2017 %>% filter(Service.Request.Description=='Rodent Extermination')
+final_data_2021_rodent_extermination <- final_data_2021 %>% filter(Service.Request.Description=='Rodent Extermination')
+```
+
+
+```{r}
+# 2017
+# Create kernel density output
+kde <- bkde2D(cbind(final_data_2017_rodent_extermination$longitude,final_data_2017_rodent_extermination$latitude),
+              bandwidth=c(.0045, .0068), gridsize = c(1000,1000))
+
+# create contour lines based on kernel density output
+CL <- contourLines(kde$x1 , kde$x2 , kde$fhat)
+
+# extract countour LINE LEVELS
+LEVS <- as.factor(sapply(CL, `[[`, "level"))
+NLEV <- length(levels(LEVS))
+
+# convert to ratser
+KernelDensityRaster <- raster(list(x=kde$x1 ,y=kde$x2 ,z = kde$fhat))
+
+#set low density cells as NA so we can make them transparent with the colorNumeric function
+ KernelDensityRaster@data@values[which(KernelDensityRaster@data@values < 1)] <- NA
+
+#create pal function for coloring the raster
+palRaster <- colorBin("Spectral", bins = 7, domain = KernelDensityRaster@data@values, na.color = "transparent")
+
+# 2021
+# create kernel density output
+kde_1 <- bkde2D(cbind(final_data_2021_rodent_extermination$longitude,final_data_2021_rodent_extermination$latitude),
+              bandwidth=c(.0045, .0068), gridsize = c(1000,1000))
+# create contour lines based on kernel density output
+CL_1 <- contourLines(kde_1$x1 , kde_1$x2 , kde_1$fhat)
+
+# extract countour LINE LEVELS
+LEVS_1 <- as.factor(sapply(CL_1, `[[`, "level"))
+NLEV_1 <- length(levels(LEVS_1))
+
+KernelDensityRaster_1 <- raster(list(x=kde_1$x1 ,y=kde_1$x2 ,z = kde_1$fhat))
+
+#set low density cells as NA so we can make them transparent with the colorNumeric function
+ KernelDensityRaster_1@data@values[which(KernelDensityRaster_1@data@values < 1)] <- NA
+
+#create pal function for coloring the raster
+palRaster_1 <- colorBin("Spectral", bins = 7, domain = KernelDensityRaster_1@data@values, na.color = "transparent")
+
+# create raster containing ward labels
+map_ward_boundaries %>% 
+  addRasterImage(KernelDensityRaster, 
+                 colors = palRaster, 
+                 opacity = .5,group='2017') %>%
+  addLegend(pal = palRaster, 
+            values = KernelDensityRaster@data@values, 
+            title = "Kernel Density of Points",group='2017') %>% 
+  addRasterImage(KernelDensityRaster_1, 
+                 colors = palRaster_1, 
+                 opacity = .5,group='2021') %>%
+  addLegend(pal = palRaster_1, 
+            values = KernelDensityRaster_1@data@values, 
+            title = "Kernel Density of Points",group='2021') %>% 
+  addLayersControl(
+    overlayGroups = c("2017", "2021"),
+    options = layersControlOptions(collapsed = TRUE)
+  ) %>% hideGroup("2017") 
+
+```
+
+## Tree Request
+
+```{r}
+final_data_2017_tree_request <- final_data_2017 %>% filter(Service.Request.Description=='Tree Request')
+final_data_2021_tree_request <- final_data_2021 %>% filter(Service.Request.Description=='Tree Request')
+```
+
+```{r}
+# 2017
+# Create kernel density output
+kde <- bkde2D(cbind(final_data_2017_tree_request$longitude,final_data_2017_tree_request$latitude),
+              bandwidth=c(.0045, .0068), gridsize = c(1000,1000))
+
+# create contour lines based on kernel density output
+CL <- contourLines(kde$x1 , kde$x2 , kde$fhat)
+
+# extract countour LINE LEVELS
+LEVS <- as.factor(sapply(CL, `[[`, "level"))
+NLEV <- length(levels(LEVS))
+
+# convert to ratser
+KernelDensityRaster <- raster(list(x=kde$x1 ,y=kde$x2 ,z = kde$fhat))
+
+#set low density cells as NA so we can make them transparent with the colorNumeric function
+ KernelDensityRaster@data@values[which(KernelDensityRaster@data@values < 1)] <- NA
+
+#create pal function for coloring the raster
+palRaster <- colorBin("Spectral", bins = 7, domain = KernelDensityRaster@data@values, na.color = "transparent")
+
+# 2021
+# create kernel density output
+kde_1 <- bkde2D(cbind(final_data_2021_tree_request$longitude,final_data_2021_tree_request$latitude),
+              bandwidth=c(.0045, .0068), gridsize = c(1000,1000))
+# create contour lines based on kernel density output
+CL_1 <- contourLines(kde_1$x1 , kde_1$x2 , kde_1$fhat)
+
+# extract countour LINE LEVELS
+LEVS_1 <- as.factor(sapply(CL_1, `[[`, "level"))
+NLEV_1 <- length(levels(LEVS_1))
+
+KernelDensityRaster_1 <- raster(list(x=kde_1$x1 ,y=kde_1$x2 ,z = kde_1$fhat))
+
+#set low density cells as NA so we can make them transparent with the colorNumeric function
+ KernelDensityRaster_1@data@values[which(KernelDensityRaster_1@data@values < 1)] <- NA
+
+#create pal function for coloring the raster
+palRaster_1 <- colorBin("Spectral", bins = 7, domain = KernelDensityRaster_1@data@values, na.color = "transparent")
+
+# create raster containing ward labels
+map_ward_boundaries %>% 
+  addRasterImage(KernelDensityRaster, 
+                 colors = palRaster, 
+                 opacity = .5,group='2017') %>%
+  addLegend(pal = palRaster, 
+            values = KernelDensityRaster@data@values, 
+            title = "Kernel Density of Points",group='2017') %>% 
+  addRasterImage(KernelDensityRaster_1, 
+                 colors = palRaster_1, 
+                 opacity = .5,group='2021') %>%
+  addLegend(pal = palRaster_1, 
+            values = KernelDensityRaster_1@data@values, 
+            title = "Kernel Density of Points",group='2021') %>% 
+  addLayersControl(
+    overlayGroups = c("2017", "2021"),
+    options = layersControlOptions(collapsed = TRUE)
+  ) %>% hideGroup("2017") 
+
+```
